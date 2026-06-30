@@ -1,0 +1,224 @@
+﻿<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parookaville 2026 Timetable</title>
+    <link rel="manifest" href="manifest.json">
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Lato', sans-serif; background-color: #000; color: #fff; padding: 10px; margin: 0; }
+        h2 { display: flex; justify-content: space-between; align-items: center; font-size: 20px; margin-top: 5px; }
+        .controls { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
+        .btn { background: #333; color: #fff; border: 1px solid #555; padding: 10px; cursor: pointer; border-radius: 4px; flex: 1; min-width: 80px; text-align: center; font-family: 'Lato', sans-serif; }
+        .btn.active { background: #00e5ff; color: #000; font-weight: bold; }
+        .btn-share { background: #25D366; color: #000; font-weight: bold; }
+        #search { width: 100%; padding: 10px; margin-bottom: 10px; box-sizing: border-box; background: #222; color: #fff; border: 1px solid #555; border-radius: 4px; font-family: 'Lato', sans-serif; }
+        select.btn { appearance: none; -webkit-appearance: none; }
+        
+        table { width: 100%; border-collapse: collapse; background: #fff; color: #000; table-layout: auto; }
+        th, td { padding: 8px 5px; border: 1px solid #ccc; text-align: left; font-size: 13px; }
+        th { background: #222; color: #fff; position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.4); }
+        
+        .past { opacity: 0.4; filter: grayscale(1); }
+        .conflict { background-color: #ffdddd !important; border-left: 4px solid #ff0000; }
+        .fav-btn { cursor: pointer; color: #ccc; border: none; background: none; font-size: 22px; padding: 0; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
+        .fav-btn.active { color: #ffcc00; text-shadow: 0 0 5px rgba(255,204,0,0.5); }
+    </style>
+</head>
+<body>
+    <h2>
+        <span>Parookaville 2026 - by Pawo</span>
+        <button class="btn btn-share" onclick="shareFavs()">Teilen 📲</button>
+    </h2>
+    <input type="text" id="search" placeholder="Suche Künstler...">
+    <div class="controls">
+        <button class="btn active" id="btn-all" onclick="setFilter('all', this)">Alle</button>
+        <button class="btn" id="btn-headliner" onclick="setFilter('headliner', this)">Headliner</button>
+        <button class="btn" id="btn-favs" onclick="setFilter('favs', this)">Favoriten</button>
+    </div>
+    <div class="controls">
+        <select id="dayFilter" onchange="render()" class="btn">
+            <option value="all">Alle Tage</option>
+            <option value="Freitag">Freitag</option>
+            <option value="Samstag">Samstag</option>
+            <option value="Sonntag">Sonntag</option>
+        </select>
+        <select id="stageFilter" onchange="render()" class="btn">
+            <option value="all">Alle Bühnen</option>
+        </select>
+    </div>
+
+    <table>
+        <thead><tr><th>Tag</th><th>Bühne</th><th>Zeit</th><th>Künstler</th><th>Fav</th></tr></thead>
+        <tbody id="tbody"></tbody>
+    </table>
+
+    <script>
+        const rawData = [
+            ["Freitag", "Mainstage", "15:00", "16:25", "Angie Mill"], ["Freitag", "Mainstage", "16:25", "17:45", "Glockenbach"], ["Freitag", "Mainstage", "17:45", "19:05", "Schrotthagen"], ["Freitag", "Mainstage", "19:05", "20:25", "Blasterjaxx"], ["Freitag", "Mainstage", "20:25", "21:45", "Argy"], ["Freitag", "Mainstage", "21:45", "23:10", "Axwell"], ["Freitag", "Mainstage", "23:10", "00:45", "Armin van Buuren"], ["Freitag", "Mainstage", "00:45", "02:15", "Charlotte de Witte"],
+            ["Freitag", "Bill's Factory", "15:00", "16:25", "TwoColours"], ["Freitag", "Bill's Factory", "16:25", "17:45", "Fast Boy"], ["Freitag", "Bill's Factory", "17:45", "19:05", "Moguai"], ["Freitag", "Bill's Factory", "19:05", "20:25", "Topic"], ["Freitag", "Bill's Factory", "20:25", "21:45", "Gestört Aber GeiL"], ["Freitag", "Bill's Factory", "21:45", "23:05", "Alle Farben"], ["Freitag", "Bill's Factory", "23:05", "00:25", "Felix Jaehn"], ["Freitag", "Bill's Factory", "00:25", "01:45", "David Puentez"], ["Freitag", "Bill's Factory", "01:45", "03:15", "ATB"],
+            ["Freitag", "Desert Valley", "15:00", "16:30", "George Radsport"], ["Freitag", "Desert Valley", "16:30", "18:00", "DJ Dreckisch"], ["Freitag", "Desert Valley", "18:00", "19:30", "Cara Elizabeth x Part Time Killer"], ["Freitag", "Desert Valley", "19:30", "21:00", "Davyboi"], ["Freitag", "Desert Valley", "21:00", "23:00", "Malugi"], ["Freitag", "Desert Valley", "23:00", "01:00", "Patrick Mason"], ["Freitag", "Desert Valley", "01:00", "02:30", "Shoki287"], ["Freitag", "Desert Valley", "02:30", "04:00", "Olive Anguz"],
+            ["Freitag", "Cloud Factory", "15:00", "16:30", "Tesfy"], ["Freitag", "Cloud Factory", "16:30", "17:45", "Broken Element"], ["Freitag", "Cloud Factory", "17:45", "18:45", "Phuture Noize"], ["Freitag", "Cloud Factory", "18:45", "19:45", "Act of Rage"], ["Freitag", "Cloud Factory", "19:45", "20:45", "RAN-D"], ["Freitag", "Cloud Factory", "20:45", "21:45", "Rebelion"], ["Freitag", "Cloud Factory", "21:45", "22:30", "Mish"], ["Freitag", "Cloud Factory", "22:30", "23:15", "The Saints"], ["Freitag", "Cloud Factory", "23:15", "00:15", "Sickmode"], ["Freitag", "Cloud Factory", "00:15", "01:15", "Dimitri K feat. MC Robs"], ["Freitag", "Cloud Factory", "01:15", "02:15", "Dr. Donk x N-Vitral"], ["Freitag", "Cloud Factory", "02:15", "03:45", "Noiseflow pres. We Are Krach"],
+            ["Freitag", "Power Plant", "15:00", "16:00", "Makla"], ["Freitag", "Power Plant", "16:00", "17:00", "Sekula"], ["Freitag", "Power Plant", "17:00", "18:00", "Toxsyck"], ["Freitag", "Power Plant", "18:00", "19:00", "Dan Lee"], ["Freitag", "Power Plant", "19:00", "20:15", "Andromedik"], ["Freitag", "Power Plant", "20:15", "21:30", "Eskei83"], ["Freitag", "Power Plant", "21:30", "22:45", "Pendulum DJ Set"], ["Freitag", "Power Plant", "22:45", "00:00", "Don Diablo pres. CTRL ALT DELETE"], ["Freitag", "Power Plant", "00:00", "01:00", "Sullivan King"], ["Freitag", "Power Plant", "01:00", "02:00", "Modestep"], ["Freitag", "Power Plant", "02:00", "03:30", "DJ MII"],
+            ["Freitag", "Time Lab", "15:00", "16:00", "Drumkomplex"], ["Freitag", "Time Lab", "16:00", "17:00", "Sarazar"], ["Freitag", "Time Lab", "17:00", "18:15", "Peter Pahn"], ["Freitag", "Time Lab", "18:15", "19:30", "Claessens"], ["Freitag", "Time Lab", "19:30", "21:00", "Isek"], ["Freitag", "Time Lab", "21:00", "22:15", "Lari Luke"], ["Freitag", "Time Lab", "22:15", "23:30", "Kxxma"], ["Freitag", "Time Lab", "23:30", "01:00", "Poltergst"], ["Freitag", "Time Lab", "01:00", "02:30", "Chrissyjeey"], ["Freitag", "Time Lab", "02:30", "04:00", "Zeuz"],
+            
+            ["Samstag", "Mainstage", "15:00", "16:25", "VIMA"], ["Samstag", "Mainstage", "16:25", "17:45", "Mesto"], ["Samstag", "Mainstage", "17:45", "19:05", "Ely Oaks"], ["Samstag", "Mainstage", "19:05", "20:25", "R3HAB"], ["Samstag", "Mainstage", "20:25", "21:50", "W&W"], ["Samstag", "Mainstage", "21:50", "23:15", "The Chainsmokers"], ["Samstag", "Mainstage", "23:15", "00:30", "Timmy Trumpet"], ["Samstag", "Mainstage", "00:30", "00:45", "Parookaville Ceremony"], ["Samstag", "Mainstage", "00:45", "02:15", "Lost Identity"],
+            ["Samstag", "Bill's Factory", "15:00", "16:20", "Zelecter"], ["Samstag", "Bill's Factory", "16:20", "17:25", "Maxtreme"], ["Samstag", "Bill's Factory", "17:25", "18:45", "Teknoclash"], ["Samstag", "Bill's Factory", "18:45", "19:50", "Jebroer"], ["Samstag", "Bill's Factory", "19:50", "20:55", "Harris & Ford"], ["Samstag", "Bill's Factory", "20:55", "22:15", "Da Tweekaz"], ["Samstag", "Bill's Factory", "22:15", "23:20", "4444 Of A Kind"], ["Samstag", "Bill's Factory", "23:20", "00:40", "Brennan Heart"], ["Samstag", "Bill's Factory", "00:40", "01:45", "Rooler"], ["Samstag", "Bill's Factory", "01:45", "03:15", "Coone"],
+            ["Samstag", "Desert Valley", "15:00", "16:15", "Dominique Jardin"], ["Samstag", "Desert Valley", "16:15", "17:30", "DJ Tora"], ["Samstag", "Desert Valley", "17:30", "19:00", "Brandon"], ["Samstag", "Desert Valley", "19:00", "20:45", "Sonny Fodera"], ["Samstag", "Desert Valley", "20:45", "22:30", "Joel Corry"], ["Samstag", "Desert Valley", "22:30", "00:00", "Mr. Belt & Wezol"], ["Samstag", "Desert Valley", "00:00", "01:30", "Fedde le Grand"], ["Samstag", "Desert Valley", "01:30", "02:45", "Plastik Funk"], ["Samstag", "Desert Valley", "02:45", "04:15", "Lovra"],
+            ["Samstag", "Cloud Factory", "15:00", "16:30", "Cleopard2000 F2F Vagabund"], ["Samstag", "Cloud Factory", "16:30", "18:30", "Mika Heggemann F2F Trancemaster Krause"], ["Samstag", "Cloud Factory", "18:30", "20:00", "Boys Noize F2F SPFDJ"], ["Samstag", "Cloud Factory", "20:00", "21:30", "Afem Syko F2F Serafina"], ["Samstag", "Cloud Factory", "21:30", "23:00", "A.N.I. F2F Anxhela"], ["Samstag", "Cloud Factory", "23:00", "01:00", "Nicolas Julia F2F Nikolina"], ["Samstag", "Cloud Factory", "01:00", "02:30", "BIAA F2F Charlie Sparks"],
+            ["Samstag", "Power Plant", "15:00", "16:00", "Matty Menck"], ["Samstag", "Power Plant", "16:00", "17:15", "Tom Novy"], ["Samstag", "Power Plant", "17:15", "18:30", "Schiller"], ["Samstag", "Power Plant", "18:30", "19:45", "Jeffrey Sutorius"], ["Samstag", "Power Plant", "19:45", "21:00", "Deniz Koyu"], ["Samstag", "Power Plant", "21:00", "22:15", "Dyro x Dannic"], ["Samstag", "Power Plant", "22:15", "23:30", "Sander van Doorn"], ["Samstag", "Power Plant", "23:30", "00:45", "Da Hool"], ["Samstag", "Power Plant", "00:45", "02:00", "Gabry Ponte"], ["Samstag", "Power Plant", "02:00", "03:30", "Aquagen"],
+            ["Samstag", "Time Lab", "15:00", "16:00", "Luca Veda"], ["Samstag", "Time Lab", "16:00", "17:00", "Phake"], ["Samstag", "Time Lab", "17:00", "18:30", "Oliver Magenta"], ["Samstag", "Time Lab", "18:30", "20:00", "YouNotUs"], ["Samstag", "Time Lab", "20:00", "21:30", "Noel Holler"], ["Samstag", "Time Lab", "21:30", "23:00", "OBS"], ["Samstag", "Time Lab", "23:00", "00:30", "Le Shuuk"], ["Samstag", "Time Lab", "00:30", "02:15", "Luca-Dante Spadafora x Niklas Dee"], ["Samstag", "Time Lab", "02:15", "03:45", "Die Gebrüder Brett"],
+            
+            ["Sonntag", "Mainstage", "15:00", "16:10", "Laura van Dam"], ["Sonntag", "Mainstage", "16:10", "17:15", "Bovski"], ["Sonntag", "Mainstage", "17:15", "18:20", "Dubvision"], ["Sonntag", "Mainstage", "18:20", "19:25", "Marten Horger"], ["Sonntag", "Mainstage", "19:25", "20:45", "Tujamo"], ["Sonntag", "Mainstage", "20:45", "22:10", "Fisher"], ["Sonntag", "Mainstage", "22:10", "23:35", "Steve Aoki"], ["Sonntag", "Mainstage", "23:35", "01:00", "Hardwell"], ["Sonntag", "Mainstage", "01:00", "02:30", "Parookaville Closing Show"],
+            ["Sonntag", "Bill's Factory", "15:00", "16:15", "2 Engel & Charlie"], ["Sonntag", "Bill's Factory", "16:15", "17:30", "Paul Wetz"], ["Sonntag", "Bill's Factory", "17:30", "18:45", "Bausa pres. Sauber"], ["Sonntag", "Bill's Factory", "18:45", "19:25", "DJ Ötzi"], ["Sonntag", "Bill's Factory", "19:25", "20:15", "Mia Julia"], ["Sonntag", "Bill's Factory", "20:15", "22:00", "HBz"], ["Sonntag", "Bill's Factory", "22:00", "23:30", "Scooter"], ["Sonntag", "Bill's Factory", "23:30", "01:00", "Cascada"],
+            ["Sonntag", "Desert Valley", "15:00", "16:30", "Christopher Bongard"], ["Sonntag", "Desert Valley", "16:30", "18:00", "Levt"], ["Sonntag", "Desert Valley", "18:00", "19:30", "Eli Brown"], ["Sonntag", "Desert Valley", "19:30", "21:30", "Maddix"], ["Sonntag", "Desert Valley", "21:30", "23:30", "HI-LO"], ["Sonntag", "Desert Valley", "23:30", "01:00", "Rewi"],
+            ["Sonntag", "Cloud Factory", "15:00", "16:30", "Benjamin R"], ["Sonntag", "Cloud Factory", "16:30", "18:00", "Olympe"], ["Sonntag", "Cloud Factory", "18:00", "20:00", "Joris Voorn"], ["Sonntag", "Cloud Factory", "20:00", "22:00", "Agents of Time"], ["Sonntag", "Cloud Factory", "22:00", "23:30", "Cassian"], ["Sonntag", "Cloud Factory", "23:30", "01:00", "JOA"],
+            ["Sonntag", "Power Plant", "15:00", "16:00", "Sepsis"], ["Sonntag", "Power Plant", "16:00", "17:00", "Timbo & This Chris"], ["Sonntag", "Power Plant", "17:00", "18:00", "Lost Identity"], ["Sonntag", "Power Plant", "18:00", "19:00", "Teknoclash"], ["Sonntag", "Power Plant", "19:00", "20:00", "LNY TNZ"], ["Sonntag", "Power Plant", "20:00", "21:00", "Sound Rush"], ["Sonntag", "Power Plant", "21:00", "22:00", "Outsiders"], ["Sonntag", "Power Plant", "22:00", "23:00", "Darren Styles"], ["Sonntag", "Power Plant", "23:00", "00:00", "Hard Driver"], ["Sonntag", "Power Plant", "00:00", "01:30", "Dikke Baap"],
+            ["Sonntag", "Time Lab", "15:00", "16:00", "Eva Kim"], ["Sonntag", "Time Lab", "16:00", "17:00", "Sam Collins"], ["Sonntag", "Time Lab", "17:00", "18:00", "Henri PFR"], ["Sonntag", "Time Lab", "18:00", "19:00", "Mike Williams"], ["Sonntag", "Time Lab", "19:00", "20:30", "Sonny Wern"], ["Sonntag", "Time Lab", "20:30", "22:00", "Mandy"], ["Sonntag", "Time Lab", "22:00", "23:30", "Acina"], ["Sonntag", "Time Lab", "23:30", "01:00", "Kaacee Komacasper"]
+        ];
+
+        const data = rawData.map(d => ({
+            day: d[0], stage: d[1], startStr: d[2], endStr: d[3], artist: d[4]
+        }));
+        
+        const headliners = ["Armin van Buuren", "Charlotte de Witte", "Timmy Trumpet", "The Chainsmokers", "Hardwell", "Steve Aoki", "Fisher", "Scooter", "Brennan Heart", "Da Tweekaz"];
+        let favs = JSON.parse(localStorage.getItem('favs2026') || '[]');
+        let currentFilter = 'all';
+
+        const params = new URLSearchParams(window.location.search);
+        if (params.has('crew')) {
+            try {
+                const sharedFavs = JSON.parse(atob(params.get('crew')));
+                if(confirm("Bäm! Du hast einen Plan von der Crew bekommen. Soll er deine aktuellen Favoriten ersetzen?")) {
+                    favs = sharedFavs;
+                    localStorage.setItem('favs2026', JSON.stringify(favs));
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            } catch(e) { alert("Ungültiger Plan-Link!"); }
+        }
+
+        const stages = [...new Set(data.map(item => item.stage))];
+        const stageSelect = document.getElementById('stageFilter');
+        stages.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s; opt.innerText = s;
+            stageSelect.appendChild(opt);
+        });
+
+        function getSortTime(timeStr) {
+            let [h, m] = timeStr.split(':').map(Number);
+            return h < 5 ? (h + 24) * 60 + m : h * 60 + m;
+        }
+
+        function isPast(day, time) {
+            const now = new Date();
+            const dayMap = {"Freitag": 17, "Samstag": 18, "Sonntag": 19};
+            const [h, m] = time.split(':').map(Number);
+            const targetDate = new Date(2026, 6, dayMap[day], h, m);
+            if (h < 5) targetDate.setDate(targetDate.getDate() + 1);
+            return now > targetDate;
+        }
+
+        function checkConflict(i, favsList) {
+            const current = data[i];
+            const currentStart = getSortTime(current.startStr);
+            const currentEnd = getSortTime(current.endStr);
+
+            return favsList.some(fIdx => {
+                if (i === fIdx) return false;
+                const other = data[fIdx];
+                if (current.day !== other.day) return false;
+                
+                const otherStart = getSortTime(other.startStr);
+                const otherEnd = getSortTime(other.endStr);
+                
+                const buffer = (current.stage !== other.stage) ? 15 : 0;
+                
+                return (currentStart < (otherEnd + buffer) && (otherStart - buffer) < currentEnd);
+            });
+        }
+
+        function render() {
+            const tbody = document.getElementById('tbody');
+            const query = document.getElementById('search').value.toLowerCase();
+            const dayF = document.getElementById('dayFilter').value;
+            const stageF = document.getElementById('stageFilter').value;
+            tbody.innerHTML = '';
+            
+            data.forEach((row, i) => {
+                if (currentFilter === 'headliner' && !headliners.includes(row.artist)) return;
+                if (currentFilter === 'favs' && !favs.includes(i)) return;
+                if (dayF !== 'all' && row.day !== dayF) return;
+                if (stageF !== 'all' && row.stage !== stageF) return;
+                if (query && !row.artist.toLowerCase().includes(query)) return;
+
+                const past = isPast(row.day, row.startStr) ? 'past' : '';
+                const conflict = (currentFilter === 'favs' && checkConflict(i, favs)) ? 'conflict' : '';
+                
+                tbody.innerHTML += `<tr class="${past} ${conflict}">
+                    <td>${row.day.substring(0,2)}</td>
+                    <td>${row.stage}</td>
+                    <td>${row.startStr} - ${row.endStr}</td>
+                    <td><b>${row.artist}</b></td>
+                    <td><button class="fav-btn ${favs.includes(i) ? 'active' : ''}" onclick="toggleFav(${i})">★</button></td>
+                </tr>`;
+            });
+        }
+
+        function toggleFav(i) {
+            if (favs.includes(i)) favs = favs.filter(id => id !== i);
+            else favs.push(i);
+            localStorage.setItem('favs2026', JSON.stringify(favs));
+            render();
+        }
+
+        function setFilter(type, btn) {
+           currentFilter = type;
+    
+           // Entfernt die Markierung von allen drei Schnellfilter-Buttons
+           document.getElementById('btn-all').classList.remove('active');
+           document.getElementById('btn-headliner').classList.remove('active');
+           document.getElementById('btn-favs').classList.remove('active');
+    
+           // Setzt die Markierung auf den aktuell geklickten Button
+           if(btn) btn.classList.add('active');
+    
+           render();
+        }
+
+
+        function shareFavs() {
+            if (favs.length === 0) {
+                alert("Wähl erst ein paar Acts aus, bevor du den Plan teilst!");
+                return;
+            }
+            const encoded = btoa(JSON.stringify(favs));
+            const url = new URL(window.location.href);
+            url.searchParams.set('crew', encoded);
+            
+            navigator.clipboard.writeText(url.toString()).then(() => {
+                alert("Link kopiert! Du kannst ihn jetzt direkt in WhatsApp einfügen und teilen.");
+            }).catch(() => {
+                alert("Link kopieren fehlgeschlagen. Hier ist der Link:\n\n" + url.toString());
+            });
+        }
+
+        document.getElementById('search').addEventListener('input', render);
+        
+        const dayOrder = {"Freitag": 1, "Samstag": 2, "Sonntag": 3};
+        data.sort((a, b) => dayOrder[a.day] - dayOrder[b.day] || getSortTime(a.startStr) - getSortTime(b.startStr));
+        
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').then(reg => {
+                    console.log('Offline-Modus aktiv!', reg);
+                });
+            });
+        }
+
+        render();
+    </script>
+</body>
+</html>
+
