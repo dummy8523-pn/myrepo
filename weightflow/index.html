@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#101719">
+  <meta name="description" content="WeightFlow: persönlicher Gewichtstracker mit Offline-Funktion.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <title>WeightFlow</title>
+</head>
+<body>
+  <header class="topbar">
+    <div><div class="eyebrow">DEIN GEWICHT. DEIN VERLAUF. DEIN ZIEL.</div><h1>Weight<span>Flow</span></h1></div>
+    <button id="installBtn" class="icon-btn" hidden aria-label="App installieren">⇩</button>
+  </header>
+
+  <main>
+    <section id="view-dashboard" class="view active">
+      <div class="section-head"><div><p class="eyebrow">ÜBERSICHT</p><h2>Dein Fortschritt</h2></div><span id="dataStatus" class="status-dot">● Lokal</span></div>
+      <div class="metric-grid">
+        <article class="metric-card"><span>Aktuelles Gewicht</span><strong id="currentWeight">–</strong><small id="weeklyChange">Noch keine Messung</small></article>
+        <article class="metric-card"><span>Zielgewicht</span><strong id="goalWeightValue">–</strong><small id="remainingWeight">Ziel festlegen</small></article>
+      </div>
+      <article class="panel chart-panel">
+        <div class="panel-head"><div><h3>Gewichtsverlauf</h3><p>Messungen und Trend</p></div>
+          <select id="rangeSelect" aria-label="Zeitraum"><option value="30">30 Tage</option><option value="90" selected>90 Tage</option><option value="180">6 Monate</option><option value="365">1 Jahr</option><option value="all">Gesamt</option></select>
+        </div>
+        <div class="chart-wrap"><canvas id="weightChart" aria-label="Gewichtsverlauf Diagramm"></canvas><div id="emptyChart" class="empty-chart">Noch keine Daten vorhanden.<br>Trage dein erstes Gewicht ein oder importiere eine CSV-Datei.</div></div>
+        <div class="legend"><span><i class="dot measured"></i>Gemessen</span><span><i class="dot trend"></i>7-Tage-Trend</span><span><i class="dot interpolated"></i>Interpoliert</span></div>
+      </article>
+      <article class="panel progress-panel">
+        <div class="panel-head"><div><h3>Zielerreichung</h3><p id="goalCaption">Lege dein Zielgewicht fest</p></div><strong id="goalPercent">–</strong></div>
+        <div class="progress-track"><div id="goalProgress" class="progress-fill"></div></div>
+        <div class="progress-labels"><span id="startWeightLabel">Start: –</span><span id="goalLabel">Ziel: –</span></div>
+      </article>
+      <div class="metric-grid compact">
+        <article class="mini-card"><span>30-Tage-Trend</span><strong id="trend30">–</strong></article>
+        <article class="mini-card"><span>Prognose Ziel</span><strong id="forecast">–</strong></article>
+      </div>
+      <button class="primary-btn wide" data-go="entry">＋ Gewicht eintragen</button>
+    </section>
+
+    <section id="view-stats" class="view">
+      <p class="eyebrow">AUSWERTUNG</p><h2>Statistik</h2>
+      <div class="metric-grid">
+        <article class="metric-card"><span>Gesamtveränderung</span><strong id="totalChange">–</strong><small>Seit erster Messung</small></article>
+        <article class="metric-card"><span>7-Tage-Mittel</span><strong id="avg7">–</strong><small>Letzte 7 Kalendertage</small></article>
+        <article class="metric-card"><span>30-Tage-Mittel</span><strong id="avg30">–</strong><small>Letzte 30 Kalendertage</small></article>
+        <article class="metric-card"><span>Tiefstgewicht</span><strong id="minWeight">–</strong><small>Gemessener Wert</small></article>
+      </div>
+      <article class="panel"><h3>Trend und Prognose</h3><p id="forecastDetail" class="muted">Sobald genügend Messwerte vorliegen, erscheint hier eine vorsichtige Trendprognose.</p></article>
+      <article class="panel"><h3>Datenqualität</h3><div class="quality-row"><span>Gemessene Einträge</span><strong id="measuredCount">0</strong></div><div class="quality-row"><span>Interpolierte Tage (aktuell)</span><strong id="interpolatedCount">0</strong></div><div class="quality-row"><span>Erster Eintrag</span><strong id="firstEntry">–</strong></div></article>
+    </section>
+
+    <section id="view-entry" class="view">
+      <p class="eyebrow">TAGEBUCH</p><h2>Gewicht eintragen</h2>
+      <form id="entryForm" class="panel form-panel">
+        <label for="entryDate">Datum</label><input id="entryDate" type="date" required>
+        <label for="entryWeight">Gewicht in kg</label><div class="input-suffix"><input id="entryWeight" type="number" min="20" max="500" step="0.1" placeholder="z. B. 84,6" required inputmode="decimal"><span>kg</span></div>
+        <label for="entryNote">Notiz <small>(optional)</small></label><textarea id="entryNote" rows="2" placeholder="Wie war der Tag?"></textarea>
+        <button class="primary-btn wide" type="submit">Messung speichern</button><p id="entryMessage" class="form-message" role="status"></p>
+      </form>
+      <article class="panel"><div class="panel-head"><h3>Letzte Einträge</h3><span id="entryCount" class="muted">0</span></div><div id="entryList" class="entry-list"><p class="muted">Noch keine Einträge.</p></div></article>
+    </section>
+
+    <section id="view-more" class="view">
+      <p class="eyebrow">VERWALTUNG</p><h2>Einstellungen & Daten</h2>
+      <article class="panel form-panel">
+        <h3>Dein Ziel</h3><label for="goalInput">Zielgewicht in kg</label><div class="input-suffix"><input id="goalInput" type="number" min="20" max="500" step="0.1" placeholder="z. B. 80,0" inputmode="decimal"><span>kg</span></div><button id="saveGoal" class="secondary-btn wide">Ziel speichern</button>
+      </article>
+      <article class="panel form-panel">
+        <h3>CSV importieren</h3><p class="muted">Datei mit Datum und Gewicht auswählen. Unterstützt werden unter anderem Datum;Gewicht und date,weight.</p>
+        <label class="file-button">Datei auswählen<input id="csvFile" type="file" accept=".csv,text/csv"></label>
+        <div id="importPreview" class="import-preview"></div>
+        <button id="confirmImport" class="primary-btn wide" hidden>Import übernehmen</button>
+      </article>
+      <article class="panel form-panel">
+        <h3>Datensicherung</h3><p class="muted">Exportiere deine Daten als CSV oder vollständiges JSON-Backup. Die Datenbank liegt lokal auf diesem Gerät (IndexedDB).</p>
+        <div class="button-row"><button id="exportCsv" class="secondary-btn">CSV exportieren</button><button id="exportJson" class="secondary-btn">JSON-Backup</button></div>
+        <label class="file-button">JSON-Backup wiederherstellen<input id="jsonFile" type="file" accept=".json,application/json"></label>
+      </article>
+      <article class="panel form-panel">
+        <h3>Darstellung</h3><p class="muted">WeightFlow verwendet derzeit ein festes dunkles Farbschema.</p><div class="quality-row"><span>Version</span><strong>0.1.0</strong></div><div class="quality-row"><span>Speicherung</span><strong>IndexedDB, lokal</strong></div>
+      </article>
+      <p class="privacy-note">Deine Einträge bleiben lokal in diesem Browser. Lösche die Browserdaten nicht ohne vorheriges Backup.</p>
+    </section>
+  </main>
+
+  <nav class="bottom-nav" aria-label="Hauptnavigation">
+    <button class="nav-item active" data-view="dashboard"><b>⌂</b><span>Start</span></button>
+    <button class="nav-item" data-view="stats"><b>▥</b><span>Statistik</span></button>
+    <button class="nav-item" data-view="entry"><b>＋</b><span>Eintragen</span></button>
+    <button class="nav-item" data-view="more"><b>⚙</b><span>Mehr</span></button>
+  </nav>
+  <div id="toast" class="toast" role="status"></div>
+  <script src="app.js"></script>
+</body>
+</html>
